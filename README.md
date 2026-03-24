@@ -75,3 +75,4 @@ The email content will be printed to the terminal console where the server or qc
 
 - Initial log entry placeholder
 - cozey7 2026-03-24 Update theming
+- zachkfan 2026-03-24 Changed variable name
