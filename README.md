@@ -70,3 +70,7 @@ from tasks.tasks import send_daily_reminders
 send_daily_reminders()
 ```
 The email content will be printed to the terminal console where the server or qcluster is running.
+
+## Merged PR Log
+
+- Initial log entry placeholder
