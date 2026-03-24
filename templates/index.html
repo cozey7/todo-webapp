@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiuser TODO App</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+        .flex { display: flex; gap: 10px; align-items: center; }
+        .card { border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+        .completed { text-decoration: line-through; color: gray; }
+        button { cursor: pointer; padding: 5px 10px; }
+        input, textarea { padding: 8px; display: block; margin-bottom: 5px; width: 100%; box-sizing: border-box; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="auth-section">
+        <h2>Login / Signup</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <p id="auth-error" style="color: red;"></p>
+    </div>
+
+    <div id="todo-section" class="hidden">
+        <div class="flex">
+            <h2 id="welcome-msg">Your Tasks</h2>
+            <button onclick="logout()">Logout</button>
+        </div>
+
+        <div class="card">
+            <h3>Add New Task</h3>
+            <input type="text" id="task-title" placeholder="Task Title">
+            <textarea id="task-desc" placeholder="Description (optional)"></textarea>
+            <input type="date" id="task-due" value="">
+            <button onclick="createTask()">Add Task</button>
+        </div>
+
+        <div class="flex" style="margin: 20px 0;">
+            <button onclick="fetchTasks()">All Tasks</button>
+            <button onclick="fetchTasks('today')">Due Today</button>
+        </div>
+        <div id="task-list"></div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('token');
+        const API_BASE = '/api/tasks/';
+        const AUTH_BASE = '/api-token-auth/';
+
+        function updateUI() {
+            if (authToken) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('todo-section').classList.remove('hidden');
+                document.getElementById('task-due').value = new Date().toISOString().split('T')[0];
+                fetchTasks();
+            } else {
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('todo-section').classList.add('hidden');
+            }
+        }
+
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            try {
+                const res = await fetch(AUTH_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+                if (data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('token', authToken);
+                    updateUI();
+                } else {
+                    document.getElementById('auth-error').innerText = 'Invalid credentials';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('token');
+            updateUI();
+        }
+
+        async function fetchTasks(filter = '') {
+            const url = filter === 'today' ? API_BASE + 'today/' : API_BASE;
+            const res = await fetch(url, {
+                headers: { 'Authorization': 'Token ' + authToken }
+            });
+            const tasks = await res.json();
+            const list = document.getElementById('task-list');
+            list.innerHTML = '';
+            tasks.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'card';
+                item.innerHTML = `
+                    <div class="${t.completed ? 'completed' : ''}">
+                        <strong>${t.title}</strong> - Due: ${t.due_date}
+                        <p>${t.description || ''}</p>
+                    </div>
+                    <button onclick="toggleComplete(${t.id}, ${t.completed})">
+                        ${t.completed ? 'Mark Incomplete' : 'Complete'}
+                    </button>
+                    <button onclick="deleteTask(${t.id})" style="color: red;">Delete</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function createTask() {
+            const title = document.getElementById('task-title').value;
+            const description = document.getElementById('task-desc').value;
+            const due_date = document.getElementById('task-due').value;
+            
+            await fetch(API_BASE, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Token ' + authToken
+                },
+                body: JSON.stringify({ title, description, due_date })
+            });
+            fetchTasks();
+        }
+
+        async function toggleComplete(id, currentStatus) {
+            await fetch(API_BASE + id + '/', {
+                method: 'PATCH',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Token ' + authToken
+                },
+                body: JSON.stringify({ completed: !currentStatus })
+            });
+            fetchTasks();
+        }
+
+        async function deleteTask(id) {
+            if (confirm('Delete this task?')) {
+                await fetch(API_BASE + id + '/', {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Token ' + authToken }
+                });
+                fetchTasks();
+            }
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
