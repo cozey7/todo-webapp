@@ -15,7 +15,7 @@ def send_daily_reminders():
         tasks_due_today = user.tasks.filter(due_date=today, completed=False)
         
         if tasks_due_today.exists():
-            message = f"Hello {user.username},\n\nYou have {tasks_due_today.count()} tasks due today:\n\n"
+            message = f"Hi {user.username},\n\nYou have {tasks_due_today.count()} tasks due today:\n\n"
             for task in tasks_due_today:
                 message += f"- {task.title}\n"
             
